@@ -1,0 +1,41 @@
+name: build-ue4dumper
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install NDK
+        uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: r26d
+          add-to-path: true
+
+      - name: Build CLI arm64
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y ninja-build cmake
+          chmod +x build.sh
+          ./build.sh --platform android --target exe --build release --arch arm64
+
+      - name: Collect output
+        run: |
+          mkdir -p out
+          cp -v builds/android/exe/release/arm64/* out/ 2>/dev/null || true
+          ls -la builds/android/exe/release/arm64/ || find builds -type f
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ue4dumper-arm64
+          path: out/**
+          if-no-files-found: error
